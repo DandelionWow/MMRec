@@ -78,13 +78,13 @@ class GeneralRecommender(AbstractRecommender):
         # load dataset info
         self.USER_ID = config['USER_ID_FIELD']
         self.ITEM_ID = config['ITEM_ID_FIELD']
-        self.NEG_ITEM_ID = config['NEG_PREFIX'] + self.ITEM_ID
-        self.n_users = dataloader.dataset.get_user_num()
-        self.n_items = dataloader.dataset.get_item_num()
+        self.NEG_ITEM_ID = config['NEG_PREFIX'] + self.ITEM_ID # 负
+        self.n_users = dataloader.dataset.get_user_num() # user数量
+        self.n_items = dataloader.dataset.get_item_num() # item数量
 
         # load parameters info
-        self.batch_size = config['train_batch_size']
-        self.device = config['device']
+        self.batch_size = config['train_batch_size'] # 2048
+        self.device = config['device'] # cpu
 
         # load encoded features here
         self.v_feat, self.t_feat = None, None
@@ -95,9 +95,9 @@ class GeneralRecommender(AbstractRecommender):
             t_feat_file_path = os.path.join(dataset_path, config['text_feature_file'])
             if os.path.isfile(v_feat_file_path):
                 self.v_feat = torch.from_numpy(np.load(v_feat_file_path, allow_pickle=True)).type(torch.FloatTensor).to(
-                    self.device)
+                    self.device) # shape torch.Size([7050, 4096])
             if os.path.isfile(t_feat_file_path):
                 self.t_feat = torch.from_numpy(np.load(t_feat_file_path, allow_pickle=True)).type(torch.FloatTensor).to(
-                    self.device)
+                    self.device) # shape torch.Size([7050, 384])
 
             assert self.v_feat is not None or self.t_feat is not None, 'Features all NONE'

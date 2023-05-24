@@ -63,22 +63,22 @@ class Trainer(AbstractTrainer):
         super(Trainer, self).__init__(config, model)
 
         self.logger = getLogger()
-        self.learner = config['learner']
-        self.learning_rate = config['learning_rate']
-        self.epochs = config['epochs']
-        self.eval_step = min(config['eval_step'], self.epochs)
-        self.stopping_step = config['stopping_step']
-        self.clip_grad_norm = config['clip_grad_norm']
-        self.valid_metric = config['valid_metric'].lower()
-        self.valid_metric_bigger = config['valid_metric_bigger']
-        self.test_batch_size = config['eval_batch_size']
-        self.device = config['device']
-        self.weight_decay = 0.0
+        self.learner = config['learner'] # adam
+        self.learning_rate = config['learning_rate'] # 0.0001
+        self.epochs = config['epochs'] # 1000
+        self.eval_step = min(config['eval_step'], self.epochs) # 1
+        self.stopping_step = config['stopping_step'] # 20
+        self.clip_grad_norm = config['clip_grad_norm'] # None
+        self.valid_metric = config['valid_metric'].lower() # recall@20
+        self.valid_metric_bigger = config['valid_metric_bigger'] # True
+        self.test_batch_size = config['eval_batch_size'] # 4096
+        self.device = config['device'] # cpu
+        self.weight_decay = 0.0 
         if config['weight_decay'] is not None:
-            wd = config['weight_decay']
+            wd = config['weight_decay'] # 0.0
             self.weight_decay = eval(wd) if isinstance(wd, str) else wd
 
-        self.req_training = config['req_training']
+        self.req_training = config['req_training'] # True
 
         self.start_epoch = 0
         self.cur_step = 0

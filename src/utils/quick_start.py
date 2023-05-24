@@ -31,7 +31,7 @@ def quick_start(model, dataset, config_dict, save_model=True):
     # print dataset statistics
     logger.info(str(dataset))
 
-    train_dataset, valid_dataset, test_dataset = dataset.split()
+    train_dataset, valid_dataset, test_dataset = dataset.split() # 分割数据集
     logger.info('\n====Training====\n' + str(train_dataset))
     logger.info('\n====Validation====\n' + str(valid_dataset))
     logger.info('\n====Testing====\n' + str(test_dataset))

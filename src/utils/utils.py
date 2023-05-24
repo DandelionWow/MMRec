@@ -124,11 +124,11 @@ def build_knn_neighbourhood(adj, topk):
 
 def compute_normalized_laplacian(adj):
     rowsum = torch.sum(adj, -1)
-    d_inv_sqrt = torch.pow(rowsum, -0.5)
-    d_inv_sqrt[torch.isinf(d_inv_sqrt)] = 0.
-    d_mat_inv_sqrt = torch.diagflat(d_inv_sqrt)
-    L_norm = torch.mm(torch.mm(d_mat_inv_sqrt, adj), d_mat_inv_sqrt)
-    return L_norm
+    d_inv_sqrt = torch.pow(rowsum, -0.5) # 负二分之一次方
+    d_inv_sqrt[torch.isinf(d_inv_sqrt)] = 0. # 元素为无穷的等于0
+    d_mat_inv_sqrt = torch.diagflat(d_inv_sqrt) # 对角 度 矩阵
+    L_norm = torch.mm(torch.mm(d_mat_inv_sqrt, adj), d_mat_inv_sqrt) # torch.mm矩阵乘法
+    return L_norm # shape torch.Size([7050, 7050])
 
 
 def build_sim(context):

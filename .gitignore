@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 
 /data/baby/
+/data/clothing/
+/data/elec/
+/data/sports/
 
 # C extensions
 *.so

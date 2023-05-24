@@ -73,7 +73,7 @@ class LATTICE(GeneralRecommender):
                 image_adj = build_knn_neighbourhood(image_adj, topk=self.knn_k)
                 image_adj = compute_normalized_laplacian(image_adj)
                 torch.save(image_adj, image_adj_file)
-            self.image_original_adj = image_adj.cuda() if config['device'] == 'cuda' else image_adj.cpu() # 图原始邻接矩阵shape:torch.Size([7050, 7050])
+            self.image_original_adj = image_adj.cuda() if config['use_gpu'] else image_adj.cpu() # 图原始邻接矩阵shape:torch.Size([7050, 7050])
 
         if self.t_feat is not None:
             self.text_embedding = nn.Embedding.from_pretrained(self.t_feat, freeze=False)
@@ -84,7 +84,7 @@ class LATTICE(GeneralRecommender):
                 text_adj = build_knn_neighbourhood(text_adj, topk=self.knn_k)
                 text_adj = compute_normalized_laplacian(text_adj)
                 torch.save(text_adj, text_adj_file)
-            self.text_original_adj = text_adj.cuda() if config['device'] == 'cuda' else text_adj.cpu() # 文字原始邻接矩阵shape:torch.Size([7050, 7050])
+            self.text_original_adj = text_adj.cuda() if config['use_gpu'] else text_adj.cpu() # 文字原始邻接矩阵shape:torch.Size([7050, 7050])
 
         if self.v_feat is not None:
             self.image_trs = nn.Linear(self.v_feat.shape[1], self.feat_embed_dim) # in_feat 4096 out_feat 64

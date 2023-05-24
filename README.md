@@ -53,3 +53,7 @@ source code at: `src\models`
 | FREEDOM | [A Tale of Two Graphs: Freezing and Denoising Graph Structures for Multimodal Recommendation](https://arxiv.org/pdf/2211.06924.pdf)                                 | arxiv                  | freedom.py  |
 | DRAGON  | [Enhancing Dyadic Relations with Homogeneous Graphs for Multimodal Recommendation](https://arxiv.org/pdf/2301.12097.pdf)                                 | arxiv                  | dragon.py  |
 
+## ENV Init
+```bash
+pip install torch==1.9.0+cu102 torchvision==0.10.0+cu102 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
+```

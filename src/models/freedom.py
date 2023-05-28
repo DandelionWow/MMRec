@@ -23,9 +23,9 @@ class FREEDOM(GeneralRecommender):
     def __init__(self, config, dataset):
         super(FREEDOM, self).__init__(config, dataset)
 
-        self.embedding_dim = config['embedding_size']
-        self.feat_embed_dim = config['feat_embed_dim']
-        self.knn_k = config['knn_k']
+        self.embedding_dim = config['embedding_size'] # 64
+        self.feat_embed_dim = config['feat_embed_dim'] # 64
+        self.knn_k = config['knn_k'] # top-10
         self.lambda_coeff = config['lambda_coeff']
         self.cf_model = config['cf_model']
         self.n_layers = config['n_mm_layers']
@@ -36,18 +36,18 @@ class FREEDOM(GeneralRecommender):
         self.dropout = config['dropout']
         self.degree_ratio = config['degree_ratio']
 
-        self.n_nodes = self.n_users + self.n_items
+        self.n_nodes = self.n_users + self.n_items # 节点数量，对应公式(4)的对称邻接矩阵A
 
         # load dataset info
-        self.interaction_matrix = dataset.inter_matrix(form='coo').astype(np.float32)
-        self.norm_adj = self.get_norm_adj_mat().to(self.device)
+        self.interaction_matrix = dataset.inter_matrix(form='coo').astype(np.float32) # 交互矩阵 n_users*n_items
+        self.norm_adj = self.get_norm_adj_mat().to(self.device) # 对应公式(4)，得到归一化后的对称邻接矩阵A，shape为n_nodes*n_nodes
         self.masked_adj, self.mm_adj = None, None
-        self.edge_indices, self.edge_values = self.get_edge_info()
+        self.edge_indices, self.edge_values = self.get_edge_info() # 得到交互矩阵的边集和归一化的边集
         self.edge_indices, self.edge_values = self.edge_indices.to(self.device), self.edge_values.to(self.device)
         self.edge_full_indices = torch.arange(self.edge_values.size(0)).to(self.device)
 
-        self.user_embedding = nn.Embedding(self.n_users, self.embedding_dim)
-        self.item_id_embedding = nn.Embedding(self.n_items, self.embedding_dim)
+        self.user_embedding = nn.Embedding(self.n_users, self.embedding_dim) # 用户嵌入层
+        self.item_id_embedding = nn.Embedding(self.n_items, self.embedding_dim) # 物品id嵌入层
         nn.init.xavier_uniform_(self.user_embedding.weight)
         nn.init.xavier_uniform_(self.item_id_embedding.weight)
 
@@ -56,25 +56,25 @@ class FREEDOM(GeneralRecommender):
 
         if self.v_feat is not None:
             self.image_embedding = nn.Embedding.from_pretrained(self.v_feat, freeze=False)
-            self.image_trs = nn.Linear(self.v_feat.shape[1], self.feat_embed_dim)
+            self.image_trs = nn.Linear(self.v_feat.shape[1], self.feat_embed_dim) # 全连接层，输入4096，输出64
         if self.t_feat is not None:
             self.text_embedding = nn.Embedding.from_pretrained(self.t_feat, freeze=False)
-            self.text_trs = nn.Linear(self.t_feat.shape[1], self.feat_embed_dim)
+            self.text_trs = nn.Linear(self.t_feat.shape[1], self.feat_embed_dim) # 输入384，输出64
 
-        if os.path.exists(mm_adj_file):
+        if os.path.exists(mm_adj_file): # 得到物品-物品图S
             self.mm_adj = torch.load(mm_adj_file)
         else:
             if self.v_feat is not None:
-                indices, image_adj = self.get_knn_adj_mat(self.image_embedding.weight.detach())
+                indices, image_adj = self.get_knn_adj_mat(self.image_embedding.weight.detach()) # 公式(2) 
                 self.mm_adj = image_adj
             if self.t_feat is not None:
-                indices, text_adj = self.get_knn_adj_mat(self.text_embedding.weight.detach())
+                indices, text_adj = self.get_knn_adj_mat(self.text_embedding.weight.detach()) # 公式(2) 
                 self.mm_adj = text_adj
             if self.v_feat is not None and self.t_feat is not None:
-                self.mm_adj = self.mm_image_weight * image_adj + (1.0 - self.mm_image_weight) * text_adj
+                self.mm_adj = self.mm_image_weight * image_adj + (1.0 - self.mm_image_weight) * text_adj # 公式(3)
                 del text_adj
                 del image_adj
-            torch.save(self.mm_adj, mm_adj_file)
+            torch.save(self.mm_adj, mm_adj_file) # 保存成文件
 
     def get_knn_adj_mat(self, mm_embeddings):
         context_norm = mm_embeddings.div(torch.norm(mm_embeddings, p=2, dim=-1, keepdim=True))
@@ -97,25 +97,25 @@ class FREEDOM(GeneralRecommender):
         rows_inv_sqrt = r_inv_sqrt[indices[0]]
         cols_inv_sqrt = r_inv_sqrt[indices[1]]
         values = rows_inv_sqrt * cols_inv_sqrt
-        return torch.sparse.FloatTensor(indices, values, adj_size)
+        return torch.sparse.FloatTensor(indices, values, adj_size) # 用对角度矩阵归一化邻接矩阵
 
     def get_norm_adj_mat(self):
         A = sp.dok_matrix((self.n_users + self.n_items,
-                           self.n_users + self.n_items), dtype=np.float32)
-        inter_M = self.interaction_matrix
-        inter_M_t = self.interaction_matrix.transpose()
+                           self.n_users + self.n_items), dtype=np.float32) # 初始化对称邻接矩阵A(公式(4)的矩阵) shape:n_nodes*n_nodes
+        inter_M = self.interaction_matrix # 交互矩阵
+        inter_M_t = self.interaction_matrix.transpose() # 交互矩阵的转置
         data_dict = dict(zip(zip(inter_M.row, inter_M.col + self.n_users),
-                             [1] * inter_M.nnz))
+                             [1] * inter_M.nnz)) # nnz表示非零个数，得到一个字典，长度为nnz
         data_dict.update(dict(zip(zip(inter_M_t.row + self.n_users, inter_M_t.col),
-                                  [1] * inter_M_t.nnz)))
-        A._update(data_dict)
+                                  [1] * inter_M_t.nnz))) # 更新字典，长度为2*nnz
+        A._update(data_dict) # 相当于公式(4)的计算
         # norm adj matrix
-        sumArr = (A > 0).sum(axis=1)
+        sumArr = (A > 0).sum(axis=1) # 对行的所有元素求和（即按列求和），shape为n_nodes*1
         # add epsilon to avoid Devide by zero Warning
-        diag = np.array(sumArr.flatten())[0] + 1e-7
-        diag = np.power(diag, -0.5)
-        D = sp.diags(diag)
-        L = D * A * D
+        diag = np.array(sumArr.flatten())[0] + 1e-7 # flatten默认按行展开成1维数组，1e-7是10的负7次方
+        diag = np.power(diag, -0.5) # 每个元素开根号取倒数
+        D = sp.diags(diag) # sp.diags沿对角线构造一个稀疏矩阵 D_ii=A的每行的和
+        L = D * A * D # 归一化
         # covert norm_adj matrix to tensor
         L = sp.coo_matrix(L)
         row = L.row
@@ -125,8 +125,8 @@ class FREEDOM(GeneralRecommender):
 
         return torch.sparse.FloatTensor(i, data, torch.Size((self.n_nodes, self.n_nodes)))
 
-    def pre_epoch_processing(self):
-        if self.dropout <= .0:
+    def pre_epoch_processing(self): # 每个epoch前，修剪，归一化已采样的邻接矩阵
+        if self.dropout <= .0: # 不处理
             self.masked_adj = self.norm_adj
             return
         # degree-sensitive edge pruning
@@ -140,33 +140,33 @@ class FREEDOM(GeneralRecommender):
         # update keep_indices to users/items+self.n_users
         keep_indices[1] += self.n_users
         all_indices = torch.cat((keep_indices, torch.flip(keep_indices, [0])), 1)
-        self.masked_adj = torch.sparse.FloatTensor(all_indices, all_values, self.norm_adj.shape).to(self.device)
+        self.masked_adj = torch.sparse.FloatTensor(all_indices, all_values, self.norm_adj.shape).to(self.device) # 修剪和归一化后的邻接矩阵A
 
     def _normalize_adj_m(self, indices, adj_size):
-        adj = torch.sparse.FloatTensor(indices, torch.ones_like(indices[0]), adj_size)
+        adj = torch.sparse.FloatTensor(indices, torch.ones_like(indices[0]), adj_size).to(self.device)
         row_sum = 1e-7 + torch.sparse.sum(adj, -1).to_dense()
         col_sum = 1e-7 + torch.sparse.sum(adj.t(), -1).to_dense()
-        r_inv_sqrt = torch.pow(row_sum, -0.5)
+        r_inv_sqrt = torch.pow(row_sum, -0.5) # 开根号取倒数
         rows_inv_sqrt = r_inv_sqrt[indices[0]]
-        c_inv_sqrt = torch.pow(col_sum, -0.5)
+        c_inv_sqrt = torch.pow(col_sum, -0.5) # 开根号取倒数
         cols_inv_sqrt = c_inv_sqrt[indices[1]]
         values = rows_inv_sqrt * cols_inv_sqrt
         return values
 
     def get_edge_info(self):
-        rows = torch.from_numpy(self.interaction_matrix.row)
-        cols = torch.from_numpy(self.interaction_matrix.col)
-        edges = torch.stack([rows, cols]).type(torch.LongTensor)
+        rows = torch.from_numpy(self.interaction_matrix.row).to(self.device) # row表示用户
+        cols = torch.from_numpy(self.interaction_matrix.col).to(self.device) # col表示物品
+        edges = torch.stack([rows, cols]).type(torch.LongTensor).to(self.device) # 表示连接交互矩阵每个节点的边，交互矩阵非零元素nnz个，shape为2*nnz
         # edge normalized values
         values = self._normalize_adj_m(edges, torch.Size((self.n_users, self.n_items)))
         return edges, values
 
-    def forward(self, adj):
+    def forward(self, adj): # adj是邻接矩阵A
         h = self.item_id_embedding.weight
         for i in range(self.n_layers):
-            h = torch.sparse.mm(self.mm_adj, h)
+            h = torch.sparse.mm(self.mm_adj, h) # 公式(5)，矩阵乘法
 
-        ego_embeddings = torch.cat((self.user_embedding.weight, self.item_id_embedding.weight), dim=0)
+        ego_embeddings = torch.cat((self.user_embedding.weight, self.item_id_embedding.weight), dim=0) # 组合权重
         all_embeddings = [ego_embeddings]
         for i in range(self.n_ui_layers):
             side_embeddings = torch.sparse.mm(adj, ego_embeddings)
@@ -174,7 +174,7 @@ class FREEDOM(GeneralRecommender):
             all_embeddings += [ego_embeddings]
         all_embeddings = torch.stack(all_embeddings, dim=1)
         all_embeddings = all_embeddings.mean(dim=1, keepdim=False)
-        u_g_embeddings, i_g_embeddings = torch.split(all_embeddings, [self.n_users, self.n_items], dim=0)
+        u_g_embeddings, i_g_embeddings = torch.split(all_embeddings, [self.n_users, self.n_items], dim=0) # u_em shape:n_users*64 i_em shape:n_items*64
         return u_g_embeddings, i_g_embeddings + h
 
     def bpr_loss(self, users, pos_items, neg_items):

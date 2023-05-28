@@ -84,7 +84,7 @@ class GeneralRecommender(AbstractRecommender):
 
         # load parameters info
         self.batch_size = config['train_batch_size'] # 2048
-        self.device = config['device'] # cpu
+        self.device = config['device']
 
         # load encoded features here
         self.v_feat, self.t_feat = None, None
